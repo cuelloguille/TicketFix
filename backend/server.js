@@ -75,6 +75,15 @@ app.post('/api/scans', auth, async (req, res) => {
   try {
     const barcode = String(req.body.barcode || '').trim();
     if (!barcode) return res.status(400).json({ error: 'No se recibió un código de barras.' });
+
+    const [duplicate] = await db.execute(
+      'SELECT id FROM scans WHERE barcode=? AND DATE(scanned_at)=DATE(NOW()) LIMIT 1',
+      [barcode]
+    );
+    if (duplicate.length) {
+      return res.status(409).json({ error: 'Pedido ya ticado.', duplicate: true, barcode });
+    }
+
     const [products] = await db.execute('SELECT name FROM products WHERE barcode=?', [barcode]);
     const productName = products[0]?.name || null;
     const [result] = await db.execute('INSERT INTO scans (user_id,barcode,product_name,scanned_at) VALUES (?,?,?,NOW())', [req.user.id, barcode, productName]);
