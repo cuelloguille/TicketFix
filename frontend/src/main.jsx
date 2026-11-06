@@ -1,0 +1,34 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import './style.css';
+
+const API = `http://${window.location.hostname}:4000/api`;
+function App() {
+  const [token,setToken] = useState(localStorage.getItem('ca_token') || '');
+  const [user,setUser] = useState(JSON.parse(localStorage.getItem('ca_user') || 'null'));
+  const [username,setUsername] = useState(''); const [password,setPassword] = useState('');
+  const [barcode,setBarcode] = useState(''); const [message,setMessage] = useState('');
+  const [last,setLast] = useState([]); const [history,setHistory] = useState([]);
+  const [newUser,setNewUser] = useState({username:'',password:'',fullName:'',role:'worker'});
+  const [newProduct,setNewProduct] = useState({barcode:'',name:''});
+  const scanRef = useRef(null);
+  const headers = { 'Content-Type':'application/json', Authorization:`Bearer ${token}` };
+  useEffect(()=>{ if(token) scanRef.current?.focus(); },[token]);
+  async function login(e){e.preventDefault();setMessage('');try{const r=await fetch(`${API}/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const d=await r.json();if(!r.ok)throw Error(d.error);localStorage.setItem('ca_token',d.token);localStorage.setItem('ca_user',JSON.stringify(d.user));setToken(d.token);setUser(d.user);}catch(e){setMessage(e.message)}}
+  function logout(){localStorage.clear();setToken('');setUser(null);setLast([])}
+  async function scan(e){e.preventDefault();const code=barcode.trim();if(!code)return;setBarcode('');try{const r=await fetch(`${API}/scans`,{method:'POST',headers,body:JSON.stringify({barcode:code})});const d=await r.json();if(!r.ok)throw Error(d.error);setLast(old=>[d,...old].slice(0,8));setMessage(`Registrado: ${d.barcode} · ${d.scannedAt}`);}catch(e){setMessage(e.message)}finally{scanRef.current?.focus()}}
+  async function loadHistory(){try{const r=await fetch(`${API}/scans`,{headers});const d=await r.json();if(!r.ok)throw Error(d.error);setHistory(d)}catch(e){setMessage(e.message)}}
+  async function createUser(e){e.preventDefault();try{const r=await fetch(`${API}/users`,{method:'POST',headers,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw Error(d.error);setMessage('Trabajador creado correctamente.');setNewUser({username:'',password:'',fullName:'',role:'worker'});}catch(e){setMessage(e.message)}}
+  async function createProduct(e){e.preventDefault();try{const r=await fetch(`${API}/products`,{method:'POST',headers,body:JSON.stringify(newProduct)});const d=await r.json();if(!r.ok)throw Error(d.error);setMessage('Producto guardado en el catálogo.');setNewProduct({barcode:'',name:''});}catch(e){setMessage(e.message)}}
+  if(!token)return <main className="login"><form className="panel" onSubmit={login}><div className="logo">CA</div><h1>Control de Armado</h1><p>Ingresá con tu usuario de trabajo</p><label>Usuario<input value={username} onChange={e=>setUsername(e.target.value)} autoFocus /></label><label>Contraseña<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label><button>Iniciar sesión</button>{message&&<p className="error">{message}</p>}</form></main>;
+  return <main className="app"><header><div><span className="eyebrow">SISTEMA DE PRODUCCIÓN</span><h1>Control de Armado</h1><p>Sesión: <b>{user?.name}</b> · {user?.role==='admin'?'Administrador':'Trabajador'}</p></div><button className="secondary" onClick={logout}>Cerrar sesión</button></header>
+    <section className="scan panel"><h2>Escanear producto</h2><p>Pasá el código por el lector USB. El campo se limpia después de cada registro.</p><form onSubmit={scan}><input ref={scanRef} value={barcode} onChange={e=>setBarcode(e.target.value)} placeholder="Esperando código de barras…" autoComplete="off"/><button>Registrar producto</button></form><div className="notice">{message || 'Listo para escanear'}</div></section>
+    <section className="panel"><h2>Últimos escaneos de esta sesión</h2>{last.length===0?<p className="muted">Todavía no hay escaneos en esta sesión.</p>:<div className="tablewrap"><table><thead><tr><th>Fecha y hora</th><th>Trabajador</th><th>Código</th><th>Producto</th></tr></thead><tbody>{last.map(x=><tr key={x.id}><td>{x.scannedAt}</td><td>{x.worker}</td><td>{x.barcode}</td><td>{x.productName||'Sin descripción'}</td></tr>)}</tbody></table></div>}</section>
+    {user?.role==='admin'&&<><section className="panel admin"><div className="sectionhead"><h2>Administración</h2><button onClick={loadHistory} className="secondary">Actualizar historial</button></div><a className="download" href={`${API}/export`} onClick={async e=>{e.preventDefault();try{const r=await fetch(`${API}/export`,{headers});if(!r.ok)throw Error('No se pudo descargar el Excel');const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Control_de_Armado.xlsx';a.click();URL.revokeObjectURL(a.href)}catch(err){setMessage(err.message)}}}>Descargar Excel actualizado</a>
+      <div className="forms"><form onSubmit={createUser}><h3>Crear trabajador</h3><input placeholder="Nombre completo" value={newUser.fullName} onChange={e=>setNewUser({...newUser,fullName:e.target.value})} required/><input placeholder="Usuario" value={newUser.username} onChange={e=>setNewUser({...newUser,username:e.target.value})} required/><input type="password" placeholder="Contraseña" value={newUser.password} onChange={e=>setNewUser({...newUser,password:e.target.value})} required/><select value={newUser.role} onChange={e=>setNewUser({...newUser,role:e.target.value})}><option value="worker">Trabajador</option><option value="admin">Administrador</option></select><button>Crear usuario</button></form>
+      <form onSubmit={createProduct}><h3>Agregar producto al catálogo</h3><input placeholder="Código de barras" value={newProduct.barcode} onChange={e=>setNewProduct({...newProduct,barcode:e.target.value})} required/><input placeholder="Nombre del producto" value={newProduct.name} onChange={e=>setNewProduct({...newProduct,name:e.target.value})} required/><button>Guardar producto</button></form></div>
+      {history.length>0&&<><h3>Historial reciente (últimos 1000)</h3><div className="tablewrap"><table><thead><tr><th>Fecha y hora</th><th>Trabajador</th><th>Código</th><th>Producto</th></tr></thead><tbody>{history.map(x=><tr key={x.id}><td>{x.scannedAt}</td><td>{x.worker}</td><td>{x.barcode}</td><td>{x.productName||'Sin descripción'}</td></tr>)}</tbody></table></div></>}</section></>}
+    <footer>Los registros se guardan en la base de datos central y el Excel se regenera automáticamente después de cada escaneo.</footer></main>;
+}
+
+createRoot(document.getElementById('root')).render(<App/>);

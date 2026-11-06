@@ -1,0 +1,29 @@
+CREATE DATABASE IF NOT EXISTS control_armado CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE control_armado;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  full_name VARCHAR(140) NOT NULL,
+  role ENUM('admin','worker') NOT NULL DEFAULT 'worker',
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  barcode VARCHAR(100) NOT NULL UNIQUE,
+  name VARCHAR(180) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS scans (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  barcode VARCHAR(100) NOT NULL,
+  product_name VARCHAR(180) NULL,
+  scanned_at DATETIME NOT NULL,
+  INDEX idx_scanned_at (scanned_at),
+  CONSTRAINT fk_scans_user FOREIGN KEY (user_id) REFERENCES users(id)
+);
