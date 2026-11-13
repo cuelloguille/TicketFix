@@ -3,6 +3,25 @@ import { createRoot } from 'react-dom/client';
 import './style.css';
 
 const API = 'https://ticketfix-backend.onrender.com/api';
+
+function formatArgentinaDateTime(value) {
+  if (!value) return '';
+  const match = value.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return value;
+  const [, y, m, d, hh, mm, ss] = match;
+  const date = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)));
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(date);
+}
+
 function App() {
   const [token,setToken] = useState(localStorage.getItem('ca_token') || '');
   const [user,setUser] = useState(JSON.parse(localStorage.getItem('ca_user') || 'null'));
@@ -16,18 +35,18 @@ function App() {
   useEffect(()=>{ if(token) scanRef.current?.focus(); },[token]);
   async function login(e){e.preventDefault();setMessage('');setMessageType('info');try{const r=await fetch(`${API}/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});const d=await r.json();if(!r.ok)throw Error(d.error);localStorage.setItem('ca_token',d.token);localStorage.setItem('ca_user',JSON.stringify(d.user));setToken(d.token);setUser(d.user);}catch(e){setMessageType('error');setMessage(e.message)}}
   function logout(){localStorage.clear();setToken('');setUser(null);setLast([]);setMessage('');setMessageType('info')}
-  async function scan(e){e.preventDefault();const code=barcode.trim();if(!code)return;setBarcode('');try{const r=await fetch(`${API}/scans`,{method:'POST',headers,body:JSON.stringify({barcode:code})});const d=await r.json();if(!r.ok){setMessageType('error');throw Error(d.error);}setLast(old=>[d,...old].slice(0,8));setMessageType('success');setMessage(`Registrado: ${d.barcode} · ${d.scannedAt}`);}catch(e){setMessage(e.message)}finally{scanRef.current?.focus()}}
+  async function scan(e){e.preventDefault();const code=barcode.trim();if(!code)return;setBarcode('');try{const r=await fetch(`${API}/scans`,{method:'POST',headers,body:JSON.stringify({barcode:code})});const d=await r.json();if(!r.ok){setMessageType('error');throw Error(d.error);}setLast(old=>[d,...old].slice(0,8));setMessageType('success');setMessage(`Registrado: ${d.barcode} · ${formatArgentinaDateTime(d.scannedAt)}`);}catch(e){setMessage(e.message)}finally{scanRef.current?.focus()}}
   async function loadHistory(){try{const r=await fetch(`${API}/scans`,{headers});const d=await r.json();if(!r.ok)throw Error(d.error);setHistory(d)}catch(e){setMessageType('error');setMessage(e.message)}}
   async function createUser(e){e.preventDefault();try{const r=await fetch(`${API}/users`,{method:'POST',headers,body:JSON.stringify(newUser)});const d=await r.json();if(!r.ok)throw Error(d.error);setMessageType('success');setMessage('Trabajador creado correctamente.');setNewUser({username:'',password:'',fullName:'',role:'worker'});}catch(e){setMessageType('error');setMessage(e.message)}}
   async function createProduct(e){e.preventDefault();try{const r=await fetch(`${API}/products`,{method:'POST',headers,body:JSON.stringify(newProduct)});const d=await r.json();if(!r.ok)throw Error(d.error);setMessageType('success');setMessage('Producto guardado en el catálogo.');setNewProduct({barcode:'',name:''});}catch(e){setMessageType('error');setMessage(e.message)}}
   if(!token)return <main className="login-shell"><div className="login-hero"><div className="hero-badge">Sistema de producción</div><h2>Control de Armado</h2><p>Centralizá cada escaneo, controlá el flujo de trabajo y mantené la producción en movimiento.</p><ul className="hero-points"><li>Registro instantáneo</li><li>Control de duplicados</li><li>Historial y exportación</li></ul></div><form className="panel login-card" onSubmit={login}><div className="logo">CA</div><h1>Iniciar sesión</h1><p className="login-subtitle">Ingresá con tu usuario de trabajo</p><label>Usuario<input value={username} onChange={e=>setUsername(e.target.value)} autoFocus /></label><label>Contraseña<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary-btn">Entrar</button>{message&&<p className="error">{message}</p>}</form></main>;
   return <main className="app"><header className="modern-header"><div><span className="eyebrow">SISTEMA DE PRODUCCIÓN</span><h1>Control de Armado</h1><p>Sesión: <b>{user?.name}</b> · {user?.role==='admin'?'Administrador':'Trabajador'}</p></div><button className="secondary" onClick={logout}>Cerrar sesión</button></header>
     <section className="scan panel"><h2>Escanear producto</h2><p>Pasá el código por el lector USB. El campo se limpia después de cada registro.</p><form onSubmit={scan}><input ref={scanRef} value={barcode} onChange={e=>setBarcode(e.target.value)} placeholder="Esperando código de barras…" autoComplete="off"/><button>Registrar producto</button></form><div className={`notice ${messageType}`}>{message || 'Listo para escanear'}</div></section>
-    <section className="panel"><h2>Últimos escaneos de esta sesión</h2>{last.length===0?<p className="muted">Todavía no hay escaneos en esta sesión.</p>:<div className="tablewrap"><table><thead><tr><th>Fecha y hora</th><th>Trabajador</th><th>Código</th><th>Producto</th></tr></thead><tbody>{last.map(x=><tr key={x.id}><td>{x.scannedAt}</td><td>{x.worker}</td><td>{x.barcode}</td><td>{x.productName||'Sin descripción'}</td></tr>)}</tbody></table></div>}</section>
+    <section className="panel"><h2>Últimos escaneos de esta sesión</h2>{last.length===0?<p className="muted">Todavía no hay escaneos en esta sesión.</p>:<div className="tablewrap"><table><thead><tr><th>Fecha y hora</th><th>Trabajador</th><th>Código</th><th>Producto</th></tr></thead><tbody>{last.map(x=><tr key={x.id}><td>{formatArgentinaDateTime(x.scannedAt)}</td><td>{x.worker}</td><td>{x.barcode}</td><td>{x.productName||'Sin descripción'}</td></tr>)}</tbody></table></div>}</section>
     {user?.role==='admin'&&<><section className="panel admin"><div className="sectionhead"><h2>Administración</h2><button onClick={loadHistory} className="secondary">Actualizar historial</button></div><a className="download" href={`${API}/export`} onClick={async e=>{e.preventDefault();try{const r=await fetch(`${API}/export`,{headers});if(!r.ok)throw Error('No se pudo descargar el Excel');const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Control_de_Armado.xlsx';a.click();URL.revokeObjectURL(a.href)}catch(err){setMessageType('error');setMessage(err.message)}}}>Descargar Excel actualizado</a>
       <div className="forms"><form onSubmit={createUser}><h3>Crear trabajador</h3><input placeholder="Nombre completo" value={newUser.fullName} onChange={e=>setNewUser({...newUser,fullName:e.target.value})} required/><input placeholder="Usuario" value={newUser.username} onChange={e=>setNewUser({...newUser,username:e.target.value})} required/><input type="password" placeholder="Contraseña" value={newUser.password} onChange={e=>setNewUser({...newUser,password:e.target.value})} required/><select value={newUser.role} onChange={e=>setNewUser({...newUser,role:e.target.value})}><option value="worker">Trabajador</option><option value="admin">Administrador</option></select><button>Crear usuario</button></form>
       <form onSubmit={createProduct}><h3>Agregar producto al catálogo</h3><input placeholder="Código de barras" value={newProduct.barcode} onChange={e=>setNewProduct({...newProduct,barcode:e.target.value})} required/><input placeholder="Nombre del producto" value={newProduct.name} onChange={e=>setNewProduct({...newProduct,name:e.target.value})} required/><button>Guardar producto</button></form></div>
-      {history.length>0&&<><h3>Historial reciente (últimos 1000)</h3><div className="tablewrap"><table><thead><tr><th>Fecha y hora</th><th>Trabajador</th><th>Código</th><th>Producto</th></tr></thead><tbody>{history.map(x=><tr key={x.id}><td>{x.scannedAt}</td><td>{x.worker}</td><td>{x.barcode}</td><td>{x.productName||'Sin descripción'}</td></tr>)}</tbody></table></div></>}</section></>}
+      {history.length>0&&<><h3>Historial reciente (últimos 1000)</h3><div className="tablewrap"><table><thead><tr><th>Fecha y hora</th><th>Trabajador</th><th>Código</th><th>Producto</th></tr></thead><tbody>{history.map(x=><tr key={x.id}><td>{formatArgentinaDateTime(x.scannedAt)}</td><td>{x.worker}</td><td>{x.barcode}</td><td>{x.productName||'Sin descripción'}</td></tr>)}</tbody></table></div></>}</section></>}
     <footer>Los registros se guardan en la base de datos central y el Excel se regenera automáticamente después de cada escaneo.</footer></main>;
 }
 

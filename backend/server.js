@@ -12,8 +12,18 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 const PORT = Number(process.env.PORT || 4000);
+const ARG_TZ = 'America/Argentina/Buenos_Aires';
 const excelPath = path.resolve(__dirname, process.env.EXCEL_PATH || './data/Control_de_Armado.xlsx');
 fs.mkdirSync(path.dirname(excelPath), { recursive: true });
+
+function argentinaDateKey(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: ARG_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
 
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -51,7 +61,7 @@ function refreshExcel() {
     wb.creator = 'Control de Armado';
     const grouped = new Map();
     for (const r of rows) { if (!grouped.has(r.day)) grouped.set(r.day, []); grouped.get(r.day).push(r); }
-    if (!grouped.size) grouped.set(new Date().toISOString().slice(0,10), []);
+    if (!grouped.size) grouped.set(argentinaDateKey(), []);
     for (const [day, items] of grouped) {
       const ws = wb.addWorksheet(day);
       ws.columns = [
