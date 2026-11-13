@@ -25,6 +25,12 @@ function argentinaDateKey(date = new Date()) {
   }).format(date);
 }
 
+function carrierForBarcode(barcode) {
+  if (/^\d{15}$/.test(barcode)) return 'Andreani';
+  if (/^[A-Z0-9]{18}$/i.test(barcode)) return 'Correo';
+  return 'Sin identificar';
+}
+
 function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   try { req.user = jwt.verify(token, process.env.JWT_SECRET); next(); }
@@ -68,10 +74,11 @@ function refreshExcel() {
         { header: 'Hora', key: 'time', width: 14 },
         { header: 'Trabajador', key: 'worker', width: 24 },
         { header: 'Código de barras', key: 'barcode', width: 22 },
+        { header: 'Correo', key: 'carrier', width: 18 },
         { header: 'Producto', key: 'product', width: 32 }
       ];
       ws.getRow(1).font = { bold: true };
-      items.forEach(x => ws.addRow(x));
+      items.forEach(x => ws.addRow({ ...x, carrier: carrierForBarcode(x.barcode) }));
       ws.views = [{ state: 'frozen', ySplit: 1 }];
     }
     const tmp = excelPath + '.tmp.xlsx';
