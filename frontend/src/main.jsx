@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './style.css';
 
-const API = `http://${window.location.hostname}:4000/api`;
+const API = 'https://ticketfix-backend.onrender.com/api';
 function App() {
   const [token,setToken] = useState(localStorage.getItem('ca_token') || '');
   const [user,setUser] = useState(JSON.parse(localStorage.getItem('ca_user') || 'null'));
