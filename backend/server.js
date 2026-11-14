@@ -59,8 +59,8 @@ app.post('/api/login', async (req, res) => {
 let excelQueue = Promise.resolve();
 function refreshExcel() {
   excelQueue = excelQueue.then(async () => {
-    const [rows] = await db.execute(`SELECT DATE_FORMAT(s.scanned_at,'%Y-%m-%d') AS day,
-      DATE_FORMAT(s.scanned_at,'%H:%i:%s') AS time, u.full_name AS worker,
+    const [rows] = await db.execute(`SELECT DATE_FORMAT(DATE_SUB(s.scanned_at, INTERVAL 3 HOUR),'%Y-%m-%d') AS day,
+      DATE_FORMAT(DATE_SUB(s.scanned_at, INTERVAL 3 HOUR),'%H:%i:%s') AS time, u.full_name AS worker,
       s.barcode, COALESCE(s.product_name,'') AS product
       FROM scans s JOIN users u ON u.id=s.user_id ORDER BY s.scanned_at, s.id`);
     const wb = new ExcelJS.Workbook();
