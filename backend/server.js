@@ -26,6 +26,7 @@ function argentinaDateKey(date = new Date()) {
 }
 
 function carrierForBarcode(barcode) {
+  if (/^\d{11}$/.test(barcode)) return 'Mercado Libre';
   if (/^\d{15}$/.test(barcode)) return 'Andreani';
   if (/^[A-Z0-9]{18}$/i.test(barcode)) return 'Correo';
   return 'Sin identificar';
@@ -74,7 +75,7 @@ function refreshExcel() {
         { header: 'Hora', key: 'time', width: 14 },
         { header: 'Trabajador', key: 'worker', width: 24 },
         { header: 'Código de barras', key: 'barcode', width: 22 },
-        { header: 'Correo', key: 'carrier', width: 18 },
+        { header: 'Transportista', key: 'carrier', width: 18 },
         { header: 'Producto', key: 'product', width: 32 }
       ];
       ws.getRow(1).font = { bold: true };
